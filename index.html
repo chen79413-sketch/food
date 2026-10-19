@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日膳食与宏量营养素计算器</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #dbeafe;
+            --carb: #f59e0b;      /* 碳水：琥珀黄 */
+            --protein: #ef4444;   /* 蛋白质：珊瑚红 */
+            --fat: #10b981;       /* 脂肪：翡翠绿 */
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --border: #e2e8f0;
+            --radius: 14px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 24px 16px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        header h1 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text-main);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #f1f5f9;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-danger {
+            color: #dc2626;
+            border-color: #fecaca;
+            background: #fef2f2;
+        }
+
+        .btn-danger:hover {
+            background: #fee2e2;
+        }
+
+        /* 布局网格 */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 920px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 表单控件 */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.825rem;
+            color: var(--text-sub);
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            background: #fff;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+        }
+
+        /* 代谢指标展示小卡片 */
+        .metabolic-badges {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .badge-box {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .badge-box span {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-sub);
+        }
+
+        .badge-box strong {
+            font-size: 1.15rem;
+            color: var(--primary);
+        }
+
+        /* 仪表盘总览 */
+        .dashboard-top {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 24px;
+            align-items: center;
+        }
+
+        @media (max-width: 600px) {
+            .dashboard-top {
+                grid-template-columns: 1fr;
+                justify-items: center;
+            }
+        }
+
+        /* 环形图 */
+        .donut-container {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: conic-gradient(var(--border) 0deg 360deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .donut-inner {
+            width: 136px;
+            height: 136px;
+            border-radius: 50%;
+            background: var(--card);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 8px;
+        }
+
+        .donut-inner .cal-current {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .donut-inner .cal-target {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            margin-top: 2px;
+        }
+
+        .donut-inner .cal-status {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 6px;
+            padding: 2px 8px;
+            border-radius: 99px;
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        /* 宏量营养素进度条 */
+        .macro-bars {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .macro-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .macro-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .macro-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 10px;
+            background: #f1f5f9;
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 99px;
+            transition: width 0.3s ease;
+        }
+
+        /* 食物添加区域 */
+        .add-food-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 2fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 14px;
+        }
+
+        .manual-food-grid {
+            display: grid;
+            grid-template-columns: 1.5fr repeat(4, 1fr) auto;
+            gap: 10px;
+            align-items: end;
+            padding-top: 14px;
+            border-top: 1px dashed var(--border);
+        }
+
+        @media (max-width: 768px) {
+            .add-food-grid, .manual-food-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* 膳食列表表格 */
+        .meal-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 6px 14px;
+            border-radius: 99px;
+            border: 1px solid var(--border);
+            background: #f8fafc;
+            font-size: 0.85rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            background: var(--text-main);
+            color: #fff;
+            border-color: var(--text-main);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--text-sub);
+            font-weight: 500;
+            background: #f8fafc;
+        }
+
+        .meal-tag {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #f1f5f9;
+            font-weight: 500;
+        }
+
+        .delete-btn {
+            color: #ef4444;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-sub);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🥗 每日膳食与宏量营养素计算工具</h1>
+        <div class="header-actions">
+            <button class="btn" onclick="exportCSV()">📥 导出今日餐单 (CSV)</button>
+            <button class="btn btn-danger" onclick="clearTodayLogs()">🗑️ 清空今日记录</button>
+        </div>
+    </header>
+
+    <div class="grid-layout">
+        <!-- 左侧：个人身体参数与目标配置 -->
+        <aside>
+            <div class="card">
+                <div class="card-title">
+                    <span>⚙️ 个人代谢与目标设定</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>性别</label>
+                        <select id="gender" onchange="updateProfile()">
+                            <option value="male">男</option>
+                            <option value="female">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>年龄 (岁)</label>
+                        <input type="number" id="age" value="30" min="10" max="100" oninput="updateProfile()">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>身高 (cm)</label>
+                        <input type="number" id="height" value="172" min="100" max="230" oninput="updateProfile()">
+                    </div>
+                    <div class="form-group">
+                        <label>体重 (kg)</label>
+                        <input type="number" id="weight" value="68" min="30" max="200" step="0.5" oninput="updateProfile()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>日常活动水平</label>
+                    <select id="activity" onchange="updateProfile()">
+                        <option value="1.2">久坐办公 (极少运动, ×1.2)</option>
+                        <option value="1.375" selected>轻度活动 (每周运动1-3次, ×1.375)</option>
+                        <option value="1.55">中度活动 (每周运动3-5次, ×1.55)</option>
+                        <option value="1.725">高强度活动 (每周运动6-7次, ×1.725)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>阶段目标调整</label>
+                    <select id="goal" onchange="updateProfile()">
+                        <option value="-400">减脂塑形 (每日热量缺口 -400 kcal)</option>
+                        <option value="0" selected>维持体重 (保持TDEE平衡)</option>
+                        <option value="300">增肌增重 (每日热量盈余 +300 kcal)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>宏量营养素配比方案 (碳水 : 蛋白质 : 脂肪)</label>
+                    <select id="macroPreset" onchange="applyPreset()">
+                        <option value="50,25,25" selected>均衡膳食 (50% : 25% : 25%)</option>
+                        <option value="40,35,25">减脂高蛋白 (40% : 35% : 25%)</option>
+                        <option value="55,25,20">耐力与运动表现 (55% : 25% : 20%)</option>
+                        <option value="20,40,40">低碳控糖饮食 (20% : 40% : 40%)</option>
+                    </select>
+                </div>
+
+                <div class="metabolic-badges">
+                    <div class="badge-box">
+                        <span>基础代谢 (BMR)</span>
+                        <strong id="bmrVal">0</strong> kcal
+                    </div>
+                    <div class="badge-box">
+                        <span>每日总消耗 (TDEE)</span>
+                        <strong id="tdeeVal">0</strong> kcal
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右侧：数据仪表盘与膳食记录 -->
+        <main>
+            <!-- 实时营养摄入仪表盘 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📊 今日热量与宏量营养素达成率</span>
+                    <span id="macroRatioHint" style="font-size: 0.8rem; color: var(--text-sub); font-weight: 400;"></span>
+                </div>
+                <div class="dashboard-top">
+                    <div class="donut-container" id="macroDonut">
+                        <div class="donut-inner">
+                            <span class="cal-current" id="intakeCal">0</span>
+                            <span class="cal-target">目标 <span id="targetCal">2000</span> kcal</span>
+                            <span class="cal-status" id="calDiffText">剩余 2000 kcal</span>
+                        </div>
+                    </div>
+
+                    <div class="macro-bars">
+                        <!-- 碳水化合物 -->
+                        <div class="macro-item">
+                            <div class="macro-header">
+                                <span><i class="macro-dot" style="background: var(--carb);"></i>碳水化合物 (4 kcal/g)</span>
+                                <span id="carbText">0 / 0 g (0%)</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill" id="carbBar" style="width: 0%; background: var(--carb);"></div>
+                            </div>
+                        </div>
+
+                        <!-- 蛋白质 -->
+                        <div class="macro-item">
+                            <div class="macro-header">
+                                <span><i class="macro-dot" style="background: var(--protein);"></i>蛋白质 (4 kcal/g)</span>
+                                <span id="proteinText">0 / 0 g (0%)</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill" id="proteinBar" style="width: 0%; background: var(--protein);"></div>
+                            </div>
+                        </div>
+
+                        <!-- 脂肪 -->
+                        <div class="macro-item">
+                            <div class="macro-header">
+                                <span><i class="macro-dot" style="background: var(--fat);"></i>脂肪 (9 kcal/g)</span>
+                                <span id="fatText">0 / 0 g (0%)</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill" id="fatBar" style="width: 0%; background: var(--fat);"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 食物快速录入面板 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>➕ 录入膳食项目</span>
+                </div>
+
+                <!-- 方式1：从内置常见食物库选择 -->
+                <div class="add-food-grid">
+                    <div>
+                        <label>餐次</label>
+                        <select id="mealType">
+                            <option value="早餐">🌅 早餐</option>
+                            <option value="午餐" selected>☀️ 午餐</option>
+                            <option value="晚餐">🌙 晚餐</option>
+                            <option value="加餐">🍎 加餐</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>常用食物速查库 (每100g营养标准)</label>
+                        <select id="foodSelect"></select>
+                    </div>
+                    <div>
+                        <label>摄入重量 (g / ml)</label>
+                        <input type="number" id="foodGrams" value="150" min="1" max="2000">
+                    </div>
+                    <button class="btn btn-primary" onclick="addFromDatabase()">+ 从库中添加</button>
+                </div>
+
+                <!-- 方式2：手动自定义食物录入 -->
+                <div class="manual-food-grid">
+                    <div>
+                        <label>自定义食物名称</label>
+                        <input type="text" id="customName" placeholder="例如：全麦三明治">
+                    </div>
+                    <div>
+                        <label>碳水 (g)</label>
+                        <input type="number" id="customCarb" placeholder="0" min="0" step="0.1">
+                    </div>
+                    <div>
+                        <label>蛋白质 (g)</label>
+                        <input type="number" id="customProtein" placeholder="0" min="0" step="0.1">
+                    </div>
+                    <div>
+                        <label>脂肪 (g)</label>
+                        <input type="number" id="customFat" placeholder="0" min="0" step="0.1">
+                    </div>
+                    <div>
+                        <label>重量 (g)</label>
+                        <input type="number" id="customWeight" placeholder="100" value="100" min="1">
+                    </div>
+                    <button class="btn" onclick="addCustomFood()">手动录入</button>
+                </div>
+            </div>
+
+            <!-- 膳食日志明细表 -->
+            <div class="card">
+                <div class="card-title">
+                    <span>📋 今日膳食日志明细</span>
+                </div>
+
+                <div class="meal-tabs" id="mealTabs">
+                    <button class="tab-btn active" onclick="filterMeal('全部', this)">全部餐次</button>
+                    <button class="tab-btn" onclick="filterMeal('早餐', this)">🌅 早餐</button>
+                    <button class="tab-btn" onclick="filterMeal('午餐', this)">☀️ 午餐</button>
+                    <button class="tab-btn" onclick="filterMeal('晚餐', this)">🌙 晚餐</button>
+                    <button class="tab-btn" onclick="filterMeal('加餐', this)">🍎 加餐</button>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>餐次</th>
+                                <th>食物名称</th>
+                                <th>分量</th>
+                                <th>碳水 (g)</th>
+                                <th>蛋白质 (g)</th>
+                                <th>脂肪 (g)</th>
+                                <th>热量 (kcal)</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+    // 内置常见食物营养数据库（每100g可食部含量：碳水g, 蛋白质g, 脂肪g）
+    const FOOD_DB = [
+        { name: "米饭 (蒸熟)", c: 25.9, p: 2.6, f: 0.3 },
+        { name: "燕麦片 (生重)", c: 61.6, p: 13.5, f: 6.7 },
+        { name: "全麦面包", c: 46.0, p: 9.0, f: 3.5 },
+        { name: "红薯 / 番薯 (蒸)", c: 20.1, p: 1.6, f: 0.2 },
+        { name: "甜玉米 (鲜食)", c: 22.8, p: 4.0, f: 1.2 },
+        { name: "鸡胸肉 (去皮生重)", c: 0.6, p: 23.0, f: 1.9 },
+        { name: "瘦牛肉 (牛腱/牛里脊)", c: 1.0, p: 21.3, f: 4.2 },
+        { name: "三文鱼 (大西洋鲑)", c: 0.0, p: 20.4, f: 13.4 },
+        { name: "虾仁 (鲜)", c: 0.8, p: 18.6, f: 0.8 },
+        { name: "水煮鸡蛋 (约50g/颗)", c: 1.1, p: 13.0, f: 10.5 },
+        { name: "纯牛奶 (全脂)", c: 4.8, p: 3.2, f: 3.6 },
+        { name: "无糖希腊酸奶", c: 3.6, p: 10.0, f: 0.4 },
+        { name: "北豆腐 / 老豆腐", c: 3.8, p: 12.2, f: 4.8 },
+        { name: "西兰花 (水焯)", c: 4.3, p: 3.5, f: 0.4 },
+        { name: "生菜 / 油麦菜", c: 2.2, p: 1.3, f: 0.3 },
+        { name: "牛油果", c: 8.5, p: 2.0, f: 15.0 },
+        { name: "香蕉", c: 22.0, p: 1.4, f: 0.2 },
+        { name: "苹果", c: 13.5, p: 0.3, f: 0.2 },
+        { name: "混合原味坚果", c: 21.0, p: 20.0, f: 50.0 },
+        { name: "橄榄油 / 植物烹调油", c: 0.0, p: 0.0, f: 99.9 }
+    ];
+
+    let state = {
+        profile: {
+            gender: "male",
+            age: 30,
+            height: 172,
+            weight: 68,
+            activity: 1.375,
+            goal: 0,
+            macroRatio: [50, 25, 25]
+        },
+        targets: { cal: 2000, carb: 250, protein: 125, fat: 55 },
+        logs: [],
+        currentFilter: "全部"
+    };
+
+    // 初始化
+    window.onload = function() {
+        initFoodSelect();
+        loadFromStorage();
+        calculateTargets();
+        renderAll();
+    };
+
+    function initFoodSelect() {
+        const select = document.getElementById("foodSelect");
+        select.innerHTML = FOOD_DB.map((item, idx) => {
+            const cal = Math.round(item.c * 4 + item.p * 4 + item.f * 9);
+            return `<option value="${idx}">${item.name} (${cal} kcal/100g | 碳${item.c} 蛋${item.p} 脂${item.f})</option>`;
+        }).join("");
+    }
+
+    function loadFromStorage() {
+        const saved = localStorage.getItem("nutrition_tracker_state_v1");
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                state = { ...state, ...parsed };
+                document.getElementById("gender").value = state.profile.gender;
+                document.getElementById("age").value = state.profile.age;
+                document.getElementById("height").value = state.profile.height;
+                document.getElementById("weight").value = state.profile.weight;
+                document.getElementById("activity").value = state.profile.activity;
+                document.getElementById("goal").value = state.profile.goal;
+                document.getElementById("macroPreset").value = state.profile.macroRatio.join(",");
+            } catch (e) {
+                console.error("读取本地缓存失败", e);
+            }
+        }
+    }
+
+    function saveToStorage() {
+        localStorage.setItem("nutrition_tracker_state_v1", JSON.stringify(state));
+    }
+
+    // 更新身体参数
+    function updateProfile() {
+        state.profile.gender = document.getElementById("gender").value;
+        state.profile.age = parseFloat(document.getElementById("age").value) || 30;
+        state.profile.height = parseFloat(document.getElementById("height").value) || 170;
+        state.profile.weight = parseFloat(document.getElementById("weight").value) || 65;
+        state.profile.activity = parseFloat(document.getElementById("activity").value) || 1.375;
+        state.profile.goal = parseFloat(document.getElementById("goal").value) || 0;
+
+        calculateTargets();
+        saveToStorage();
+        renderDashboard();
+    }
+
+    function applyPreset() {
+        const ratio = document.getElementById("macroPreset").value.split(",").map(Number);
+        state.profile.macroRatio = ratio;
+        calculateTargets();
+        saveToStorage();
+        renderDashboard();
+    }
+
+    // Mifflin-St Jeor 公式计算 BMR 与 TDEE
+    function calculateTargets() {
+        const { gender, age, height, weight, activity, goal, macroRatio } = state.profile;
+        let bmr = 10 * weight + 6.25 * height - 5 * age + (gender === "male" ? 5 : -161);
+        bmr = Math.max(1000, Math.round(bmr));
+        const tdee = Math.round(bmr * activity);
+        const targetCal = Math.max(1200, tdee + goal);
+
+        const [cPct, pPct, fPct] = macroRatio;
+        const targetCarb = Math.round((targetCal * (cPct / 100)) / 4);
+        const targetProtein = Math.round((targetCal * (pPct / 100)) / 4);
+        const targetFat = Math.round((targetCal * (fPct / 100)) / 9);
+
+        document.getElementById("bmrVal").textContent = bmr;
+        document.getElementById("tdeeVal").textContent = tdee;
+
+        state.targets = {
+            cal: targetCal,
+            carb: targetCarb,
+            protein: targetProtein,
+            fat: targetFat
+        };
+    }
+
+    // 从数据库添加食物
+    function addFromDatabase() {
+        const meal = document.getElementById("mealType").value;
+        const idx = parseInt(document.getElementById("foodSelect").value, 10);
+        const grams = parseFloat(document.getElementById("foodGrams").value);
+
+        if (!grams || grams <= 0) return alert("请输入有效的食物克重！");
+
+        const food = FOOD_DB[idx];
+        const ratio = grams / 100;
+        const c = +(food.c * ratio).toFixed(1);
+        const p = +(food.p * ratio).toFixed(1);
+        const f = +(food.f * ratio).toFixed(1);
+        const cal = Math.round(c * 4 + p * 4 + f * 9);
+
+        state.logs.push({
+            id: Date.now(),
+            meal,
+            name: food.name,
+            grams,
+            c, p, f, cal
+        });
+
+        saveToStorage();
+        renderAll();
+    }
+
+    // 手动录入自定义食物
+    function addCustomFood() {
+        const meal = document.getElementById("mealType").value;
+        const name = document.getElementById("customName").value.trim() || "自定义食物";
+        const c = parseFloat(document.getElementById("customCarb").value) || 0;
+        const p = parseFloat(document.getElementById("customProtein").value) || 0;
+        const f = parseFloat(document.getElementById("customFat").value) || 0;
+        const grams = parseFloat(document.getElementById("customWeight").value) || 100;
+
+        if (c === 0 && p === 0 && f === 0) {
+            return alert("请至少输入一项宏量营养素数值！");
+        }
+
+        const cal = Math.round(c * 4 + p * 4 + f * 9);
+
+        state.logs.push({
+            id: Date.now(),
+            meal,
+            name,
+            grams,
+            c: +c.toFixed(1),
+            p: +p.toFixed(1),
+            f: +f.toFixed(1),
+            cal
+        });
+
+        // 清空自定义输入框
+        document.getElementById("customName").value = "";
+        document.getElementById("customCarb").value = "";
+        document.getElementById("customProtein").value = "";
+        document.getElementById("customFat").value = "";
+
+        saveToStorage();
+        renderAll();
+    }
+
+    function deleteLog(id) {
+        state.logs = state.logs.filter(item => item.id !== id);
+        saveToStorage();
+        renderAll();
+    }
+
+    function clearTodayLogs() {
+        if (state.logs.length === 0) return;
+        if (confirm("确定要清空今日所有膳食记录吗？")) {
+            state.logs = [];
+            saveToStorage();
+            renderAll();
+        }
+    }
+
+    function filterMeal(meal, btnEl) {
+        state.currentFilter = meal;
+        document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+        btnEl.classList.add("active");
+        renderTable();
+    }
+
+    function renderAll() {
+        renderDashboard();
+        renderTable();
+    }
+
+    function renderDashboard() {
+        const totals = state.logs.reduce((acc, cur) => {
+            acc.c += cur.c;
+            acc.p += cur.p;
+            acc.f += cur.f;
+            acc.cal += cur.cal;
+            return acc;
+        }, { c: 0, p: 0, f: 0, cal: 0 });
+
+        const { cal: tCal, carb: tCarb, protein: tPro, fat: tFat } = state.targets;
+
+        // 更新热量文字与状态
+        document.getElementById("intakeCal").textContent = Math.round(totals.cal);
+        document.getElementById("targetCal").textContent = tCal;
+
+        const diff = tCal - Math.round(totals.cal);
+        const diffEl = document.getElementById("calDiffText");
+        if (diff >= 0) {
+            diffEl.textContent = `还可摄入 ${diff} kcal`;
+            diffEl.style.background = "#dbeafe";
+            diffEl.style.color = "#2563eb";
+        } else {
+            diffEl.textContent = `已超标 ${Math.abs(diff)} kcal`;
+            diffEl.style.background = "#fee2e2";
+            diffEl.style.color = "#dc2626";
+        }
+
+        // 更新进度条
+        const cPct = Math.min(100, Math.round((totals.c / tCarb) * 100));
+        const pPct = Math.min(100, Math.round((totals.p / tPro) * 100));
+        const fPct = Math.min(100, Math.round((totals.f / tFat) * 100));
+
+        document.getElementById("carbText").textContent = `${totals.c.toFixed(1)} / ${tCarb} g (${Math.round((totals.c / tCarb) * 100)}%)`;
+        document.getElementById("proteinText").textContent = `${totals.p.toFixed(1)} / ${tPro} g (${Math.round((totals.p / tPro) * 100)}%)`;
+        document.getElementById("fatText").textContent = `${totals.f.toFixed(1)} / ${tFat} g (${Math.round((totals.f / tFat) * 100)}%)`;
+
+        document.getElementById("carbBar").style.width = `${cPct}%`;
+        document.getElementById("proteinBar").style.width = `${pPct}%`;
+        document.getElementById("fatBar").style.width = `${fPct}%`;
+
+        // 更新圆环图 (展示实际已摄入的热量构成比例)
+        const cCal = totals.c * 4;
+        const pCal = totals.p * 4;
+        const fCal = totals.f * 9;
+        const sumMacroCal = cCal + pCal + fCal;
+
+        const donut = document.getElementById("macroDonut");
+        const hint = document.getElementById("macroRatioHint");
+
+        if (sumMacroCal > 0) {
+            const cDeg = (cCal / sumMacroCal) * 360;
+            const pDeg = cDeg + (pCal / sumMacroCal) * 360;
+            donut.style.background = `conic-gradient(
+                var(--carb) 0deg ${cDeg}deg,
+                var(--protein) ${cDeg}deg ${pDeg}deg,
+                var(--fat) ${pDeg}deg 360deg
+            )`;
+            const actualCPct = Math.round((cCal / sumMacroCal) * 100);
+            const actualPPct = Math.round((pCal / sumMacroCal) * 100);
+            const actualFPct = 100 - actualCPct - actualPPct;
+            hint.textContent = `当前实际供能比 — 碳水 ${actualCPct}% : 蛋白质 ${actualPPct}% : 脂肪 ${actualFPct}%`;
+        } else {
+            donut.style.background = `conic-gradient(var(--border) 0deg 360deg)`;
+            hint.textContent = `尚未录入今日食物`;
+        }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById("logTableBody");
+        const filtered = state.currentFilter === "全部"
+            ? state.logs
+            : state.logs.filter(item => item.meal === state.currentFilter);
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="empty-state">暂无【${state.currentFilter}】膳食记录，请在上方选择或手动添加食物。</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(item => `
+            <tr>
+                <td><span class="meal-tag">${item.meal}</span></td>
+                <td><strong>${item.name}</strong></td>
+                <td>${item.grams} g</td>
+                <td style="color: var(--carb); font-weight: 600;">${item.c}</td>
+                <td style="color: var(--protein); font-weight: 600;">${item.p}</td>
+                <td style="color: var(--fat); font-weight: 600;">${item.f}</td>
+                <td><strong>${item.cal}</strong></td>
+                <td><button class="delete-btn" onclick="deleteLog(${item.id})">删除</button></td>
+            </tr>
+        `).join("");
+    }
+
+    // 导出 CSV 报表
+    function exportCSV() {
+        if (state.logs.length === 0) return alert("当前没有可导出的膳食记录！");
+        const headers = ["餐次", "食物名称", "重量(g)", "碳水化合物(g)", "蛋白质(g)", "脂肪(g)", "热量(kcal)"];
+        const rows = state.logs.map(i => [i.meal, `"${i.name}"`, i.grams, i.c, i.p, i.f, i.cal]);
+
+        let csvContent = "\uFEFF" + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `每日膳食营养记录_${new Date().toISOString().slice(0,10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    }
+</script>
+
+</body>
+</html>
